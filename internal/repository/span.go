@@ -16,6 +16,7 @@ import (
 type SpanRepository struct {
 	logger     hclog.Logger
 	repository om.Repository[model.Span]
+	client     rueidis.Client
 }
 
 func NewSpanRepository(logger hclog.Logger, redisClient rueidis.Client) (*SpanRepository, error) {
@@ -26,6 +27,7 @@ func NewSpanRepository(logger hclog.Logger, redisClient rueidis.Client) (*SpanRe
 	return &SpanRepository{
 		logger:     logger,
 		repository: repository,
+		client:     redisClient,
 	}, nil
 }
 
@@ -80,9 +82,9 @@ func (s *SpanRepository) WriteSpan(context context.Context, jSpan *jModel.Span) 
 	return nil
 }
 
-func (s *SpanRepository) GetTracesId(context context.Context, service string) ([]string, error) {
+func (s *SpanRepository) GetTracesId(context context.Context, queryParameters model.TraceQueryParameters) ([]string, error) {
 	cursor, err := s.repository.Aggregate(context, func(search om.FtAggregateIndex) om.Completed {
-		query := fmt.Sprintf("@processServiceName:%s", redis.Tokenization(service))
+		query := buildQueryFilter(queryParameters)
 		return search.Query(query).LoadAll().Groupby(1).Property("@traceID").Reduce("COUNT").Nargs(0).Build()
 	})
 
@@ -159,4 +161,38 @@ func (s *SpanRepository) GetSpans(context context.Context, service string) ([]*m
 	}
 
 	return records, nil
+}
+
+func buildQueryFilter(queryParameters model.TraceQueryParameters) string {
+	query := fmt.Sprintf("@processServiceName:%s", redis.Tokenization(queryParameters.ServiceName))
+
+	if queryParameters.OperationName != "" {
+		query += fmt.Sprintf(" @operationName:%s", redis.Tokenization(queryParameters.OperationName))
+	}
+
+	if queryParameters.DurationMax > 0 && queryParameters.DurationMin == 0 {
+		query += fmt.Sprintf(" @duration:[-inf %v]", model.DurationAsMicroseconds(queryParameters.DurationMax))
+	}
+
+	if queryParameters.DurationMin > 0 && queryParameters.DurationMax == 0 {
+		query += fmt.Sprintf(" @duration:[%v +inf]", model.DurationAsMicroseconds(queryParameters.DurationMin))
+	}
+
+	if queryParameters.DurationMax > 0 && queryParameters.DurationMin > 0 {
+		query += fmt.Sprintf(" @duration:[%v %v]",
+			model.DurationAsMicroseconds(queryParameters.DurationMin),
+			model.DurationAsMicroseconds(queryParameters.DurationMax))
+	}
+
+	for key, value := range queryParameters.Tags {
+		query += fmt.Sprintf(" @tagKey:{ %s } @tagValue:{ %s }",
+			redis.Tokenization(key),
+			redis.Tokenization(value))
+	}
+
+	query += fmt.Sprintf(" @startTime:[%v %v]",
+		model.TimeAsEpochMicroseconds(queryParameters.StartTimeMin),
+		model.TimeAsEpochMicroseconds(queryParameters.StartTimeMax))
+
+	return query
 }

@@ -3,10 +3,10 @@ package store
 import (
 	"context"
 	"fmt"
+	"jaegerredissearch/internal/model"
 	"jaegerredissearch/internal/repository"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/jaegertracing/jaeger/model"
 	jModel "github.com/jaegertracing/jaeger/model"
 	"github.com/jaegertracing/jaeger/storage/spanstore"
 )
@@ -53,8 +53,22 @@ func (s *SpanReader) GetOperations(ctx context.Context, query spanstore.Operatio
 	return array, nil
 }
 
-func (s *SpanReader) FindTraces(ctx context.Context, query *spanstore.TraceQueryParameters) ([]*model.Trace, error) {
-	traceIds, err := s.spanRepository.GetTracesId(ctx, query.ServiceName)
+func (s *SpanReader) FindTraces(ctx context.Context, query *spanstore.TraceQueryParameters) ([]*jModel.Trace, error) {
+	traceIds, err := s.spanRepository.GetTracesId(ctx, model.TraceQueryParameters{
+		ServiceName:   query.ServiceName,
+		OperationName: query.OperationName,
+		Tags:          query.Tags,
+		StartTimeMin:  query.StartTimeMin,
+		StartTimeMax:  query.StartTimeMax,
+		DurationMin:   query.DurationMin,
+		DurationMax:   query.DurationMax,
+		NumTraces:     int64(query.NumTraces),
+	})
+
+	if len(traceIds) == 0 {
+		return nil, nil
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("error to get traces id: %s", err)
 	}
@@ -73,6 +87,6 @@ func (s *SpanReader) FindTraces(ctx context.Context, query *spanstore.TraceQuery
 	return traces, nil
 }
 
-func (s *SpanReader) FindTraceIDs(ctx context.Context, query *spanstore.TraceQueryParameters) ([]model.TraceID, error) {
+func (s *SpanReader) FindTraceIDs(ctx context.Context, query *spanstore.TraceQueryParameters) ([]jModel.TraceID, error) {
 	return nil, nil
 }
