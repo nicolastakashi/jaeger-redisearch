@@ -1,0 +1,31 @@
+version: '3.7'
+services:
+  jaeger:
+    network_mode: host
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - SPAN_STORAGE_TYPE=grpc-plugin
+      - GRPC_STORAGE_PLUGIN_BINARY=/usr/bin/jaeger-redissearch
+      - GRPC_STORAGE_PLUGIN_CONFIGURATION_FILE=/etc/jaeger-redisresearch/config.yaml
+    volumes:
+      - ./bin/jaeger-redissearch:/usr/bin/jaeger-redissearch
+      - ./configs/config.yaml:/etc/jaeger-redisresearch/config.yaml
+    ports:
+      - "6831:6831/udp"
+      - "16686:16686"
+  hotrod:
+    image: jaegertracing/example-hotrod:latest
+    network_mode: host
+    ports: 
+      - "8081:8080"
+    command: ["all"]
+    environment:
+      - JAEGER_AGENT_HOST=localhost
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - jaeger
+  
+  redis:
+    image: redislabs/redisearch:latest
+    ports: 
+      - "6379:6379"
