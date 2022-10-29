@@ -99,7 +99,7 @@ func (s *SpanRepository) GetTracesId(context context.Context, queryParameters mo
 
 	cursor, err := s.repository.Aggregate(context, func(search om.FtAggregateIndex) om.Completed {
 		query := buildQueryFilter(queryParameters)
-		return search.Query(query).LoadAll().Groupby(1).Property("@traceID").Reduce("COUNT").Nargs(0).Build()
+		return search.Query(query).LoadAll().Groupby(1).Property("@traceID").Reduce("COUNT").Nargs(0).Sortby(1).Property("@traceID").Max(queryParameters.NumTraces).Build()
 	})
 
 	if err != nil {
@@ -108,9 +108,7 @@ func (s *SpanRepository) GetTracesId(context context.Context, queryParameters mo
 		return nil, err
 	}
 
-	total := cursor.Total()
-	services := make([]string, total)
-
+	services := make([]string, queryParameters.NumTraces)
 	c, err := cursor.Read(context)
 	if err != nil {
 		metrics.ReadLatency.WithLabelValues(spanIndexName, "Error", "get_traces_id").Observe(time.Since(readStart).Seconds())
@@ -132,6 +130,7 @@ func (s *SpanRepository) GetTracesById(context context.Context, ids []string) (m
 
 	_, spans, err := s.repository.Search(context, func(search om.FtSearchIndex) om.Completed {
 		query := fmt.Sprintf("@traceID:(%s)", strings.Join(ids, "|"))
+		// s.logger.Error(fmt.Sprintf("=================================> %s", query))
 		return search.Query(query).Build()
 	})
 
