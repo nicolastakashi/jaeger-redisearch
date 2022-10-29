@@ -17,10 +17,10 @@ import (
 type SpanReader struct {
 	logger            hclog.Logger
 	spanRepository    *repository.SpanRepository
-	serviceRepository *repository.ServiceRepository
+	serviceRepository *repository.OperationRepository
 }
 
-func NewSpanReader(logger hclog.Logger, spanRepository *repository.SpanRepository, serviceRepository *repository.ServiceRepository) *SpanReader {
+func NewSpanReader(logger hclog.Logger, spanRepository *repository.SpanRepository, serviceRepository *repository.OperationRepository) *SpanReader {
 	return &SpanReader{
 		logger:            logger,
 		spanRepository:    spanRepository,
@@ -68,7 +68,7 @@ func (s *SpanReader) GetOperations(ctx context.Context, query spanstore.Operatio
 	defer metrics.ReadsTotal.WithLabelValues("services", "get_operations")
 	start := time.Now()
 
-	operations, err := s.serviceRepository.GetServiceOperation(ctx, query.ServiceName)
+	operations, err := s.serviceRepository.GetOperationsByService(ctx, query.ServiceName)
 	if err != nil {
 		metrics.ReadLatency.WithLabelValues("services", "Error", "get_operations").Observe(time.Since(start).Seconds())
 		return nil, fmt.Errorf("error to get services: %s", err)

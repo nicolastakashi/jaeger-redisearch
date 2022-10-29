@@ -16,27 +16,27 @@ import (
 	"github.com/rueian/rueidis/om"
 )
 
-const serviceIndexName = "services"
+const operationIndexName = "operation"
 
-type ServiceRepository struct {
+type OperationRepository struct {
 	logger     hclog.Logger
-	repository om.Repository[model.Service]
+	repository om.Repository[model.Operation]
 	mu         sync.Mutex
 }
 
-func NewServiceRepository(logger hclog.Logger, redisClient rueidis.Client) (*ServiceRepository, error) {
-	repository := om.NewJSONRepository(serviceIndexName, model.Service{}, redisClient)
-	if _, ok := repository.(*om.JSONRepository[model.Service]); ok {
-		createServiceIndex(repository)
+func NewOperationRepository(logger hclog.Logger, redisClient rueidis.Client) (*OperationRepository, error) {
+	repository := om.NewJSONRepository(operationIndexName, model.Operation{}, redisClient)
+	if _, ok := repository.(*om.JSONRepository[model.Operation]); ok {
+		createOperationIndex(repository)
 	}
-	return &ServiceRepository{
+	return &OperationRepository{
 		logger:     logger,
 		repository: repository,
 		mu:         sync.Mutex{},
 	}, nil
 }
 
-func createServiceIndex(repository om.Repository[model.Service]) {
+func createOperationIndex(repository om.Repository[model.Operation]) {
 	repository.CreateIndex(context.TODO(), func(schema om.FtCreateSchema) om.Completed {
 		text := schema.FieldName("$.service").As("service").Text()
 		text = text.FieldName("$.operation").As("operation").Text()
@@ -45,7 +45,7 @@ func createServiceIndex(repository om.Repository[model.Service]) {
 	})
 }
 
-func (s *ServiceRepository) WriteService(context context.Context, jaegerSpan *jModel.Span) error {
+func (s *OperationRepository) Write(context context.Context, jaegerSpan *jModel.Span) error {
 	s.mu.Lock()
 	writeStart := time.Now()
 	defer s.mu.Unlock()
@@ -72,17 +72,17 @@ func (s *ServiceRepository) WriteService(context context.Context, jaegerSpan *jM
 	err = s.repository.Save(context, newSvc)
 
 	if err != nil {
-		metrics.WritesLantency.WithLabelValues(serviceIndexName, "Error").Observe(time.Since(writeStart).Seconds())
+		metrics.WritesLantency.WithLabelValues(operationIndexName, "Error").Observe(time.Since(writeStart).Seconds())
 		return err
 	}
 
-	metrics.WritesLantency.WithLabelValues(serviceIndexName, "Ok").Observe(time.Since(writeStart).Seconds())
-	metrics.WritesTotal.WithLabelValues(serviceIndexName).Inc()
+	metrics.WritesLantency.WithLabelValues(operationIndexName, "Ok").Observe(time.Since(writeStart).Seconds())
+	metrics.WritesTotal.WithLabelValues(operationIndexName).Inc()
 
 	return nil
 }
 
-func (s *ServiceRepository) GetServices(context context.Context) ([]string, error) {
+func (s *OperationRepository) GetServices(context context.Context) ([]string, error) {
 	cursor, err := s.repository.Aggregate(context, func(search om.FtAggregateIndex) om.Completed {
 		return search.Query("*").LoadAll().Groupby(1).Property("@service").Reduce("COUNT").Nargs(0).Build()
 	})
@@ -107,7 +107,7 @@ func (s *ServiceRepository) GetServices(context context.Context) ([]string, erro
 	return services, nil
 }
 
-func (s *ServiceRepository) GetServiceOperation(context context.Context, service string) ([]string, error) {
+func (s *OperationRepository) GetOperationsByService(context context.Context, service string) ([]string, error) {
 	n, records, err := s.repository.Search(context, func(search om.FtSearchIndex) om.Completed {
 		query := fmt.Sprintf("@service:%s", redis.Tokenization(service))
 		return search.Query(query).Build()

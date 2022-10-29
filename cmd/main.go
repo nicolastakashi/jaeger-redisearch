@@ -67,7 +67,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	serviceRepository, err := repository.NewServiceRepository(logger, c)
+	serviceRepository, err := repository.NewOperationRepository(logger, c)
 
 	if err != nil {
 		logger.Error("error to create span repository", err)

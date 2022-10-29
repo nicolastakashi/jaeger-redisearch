@@ -11,10 +11,10 @@ import (
 type SpanWriter struct {
 	logger            hclog.Logger
 	spanRepository    *repository.SpanRepository
-	serviceRepository *repository.ServiceRepository
+	serviceRepository *repository.OperationRepository
 }
 
-func NewSpanWriter(logger hclog.Logger, spanRepository *repository.SpanRepository, serviceRepository *repository.ServiceRepository) *SpanWriter {
+func NewSpanWriter(logger hclog.Logger, spanRepository *repository.SpanRepository, serviceRepository *repository.OperationRepository) *SpanWriter {
 	return &SpanWriter{
 		logger:            logger,
 		spanRepository:    spanRepository,
@@ -23,7 +23,7 @@ func NewSpanWriter(logger hclog.Logger, spanRepository *repository.SpanRepositor
 }
 
 func (s *SpanWriter) WriteSpan(ctx context.Context, span *jModel.Span) error {
-	err := s.serviceRepository.WriteService(ctx, span)
+	err := s.serviceRepository.Write(ctx, span)
 
 	if err != nil {
 		s.logger.Error("error to write service", err)
