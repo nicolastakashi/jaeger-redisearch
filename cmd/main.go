@@ -98,7 +98,7 @@ type RedisStorePlugin struct {
 }
 
 func (s *RedisStorePlugin) DependencyReader() dependencystore.Reader {
-	return nil
+	return s.reader
 }
 
 func (s *RedisStorePlugin) SpanReader() spanstore.Reader {

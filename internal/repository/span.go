@@ -93,17 +93,12 @@ func (s *SpanRepository) WriteSpan(context context.Context, jSpan *jModel.Span) 
 }
 
 func (s *SpanRepository) GetTracesId(context context.Context, queryParameters model.TraceQueryParameters) ([]string, error) {
-	defer metrics.ReadsTotal.WithLabelValues(spanIndexName, "get_traces_id")
-
-	readStart := time.Now()
-
 	cursor, err := s.repository.Aggregate(context, func(search om.FtAggregateIndex) om.Completed {
 		query := buildQueryFilter(queryParameters)
 		return search.Query(query).LoadAll().Groupby(1).Property("@traceID").Reduce("COUNT").Nargs(0).Sortby(1).Property("@traceID").Max(queryParameters.NumTraces).Build()
 	})
 
 	if err != nil {
-		metrics.ReadLatency.WithLabelValues(spanIndexName, "Error", "get_traces_id").Observe(time.Since(readStart).Seconds())
 		s.logger.Error(err.Error())
 		return nil, err
 	}
@@ -111,7 +106,6 @@ func (s *SpanRepository) GetTracesId(context context.Context, queryParameters mo
 	services := make([]string, queryParameters.NumTraces)
 	c, err := cursor.Read(context)
 	if err != nil {
-		metrics.ReadLatency.WithLabelValues(spanIndexName, "Error", "get_traces_id").Observe(time.Since(readStart).Seconds())
 		s.logger.Error(err.Error())
 		return nil, err
 	}
@@ -120,22 +114,16 @@ func (s *SpanRepository) GetTracesId(context context.Context, queryParameters mo
 		services[i] = s["traceID"]
 	}
 
-	metrics.ReadLatency.WithLabelValues(spanIndexName, "Ok", "get_traces_id").Observe(time.Since(readStart).Seconds())
 	return services, nil
 }
 
 func (s *SpanRepository) GetTracesById(context context.Context, ids []string) (map[string]*jModel.Trace, error) {
-	defer metrics.ReadsTotal.WithLabelValues(spanIndexName, "get_traces_by_id")
-	readStart := time.Now()
-
 	_, spans, err := s.repository.Search(context, func(search om.FtSearchIndex) om.Completed {
 		query := fmt.Sprintf("@traceID:(%s)", strings.Join(ids, "|"))
-		// s.logger.Error(fmt.Sprintf("=================================> %s", query))
 		return search.Query(query).Build()
 	})
 
 	if err != nil {
-		metrics.ReadLatency.WithLabelValues(spanIndexName, "Error", "get_traces_by_id").Observe(time.Since(readStart).Seconds())
 		s.logger.Error(err.Error())
 		return nil, err
 	}
@@ -167,7 +155,6 @@ func (s *SpanRepository) GetTracesById(context context.Context, ids []string) (m
 
 		tracesMap[span.TraceID].Spans = append(tracesMap[span.TraceID].Spans, &s)
 	}
-	metrics.ReadLatency.WithLabelValues(spanIndexName, "Ok", "get_traces_by_id").Observe(time.Since(readStart).Seconds())
 	return tracesMap, nil
 }
 
