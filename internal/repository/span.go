@@ -103,15 +103,15 @@ func (s *SpanRepository) GetTracesId(context context.Context, queryParameters mo
 		return nil, err
 	}
 
-	services := make([]string, queryParameters.NumTraces)
+	services := []string{}
 	c, err := cursor.Read(context)
 	if err != nil {
 		s.logger.Error(err.Error())
 		return nil, err
 	}
 
-	for i, s := range c {
-		services[i] = s["traceID"]
+	for _, s := range c {
+		services = append(services, s["traceID"])
 	}
 
 	return services, nil
