@@ -43,11 +43,17 @@ all: fmt vet tests deps build
 
 .PHONY: build
 
+run-hotrod:
+	@docker-compose up hotrod
+
 run-redis:
 	@docker-compose up redis
 
 run-jaeger:
 	@docker-compose up jaeger
+
+run-all: build
+	@docker-compose up
 
 clean:
 	@docker-compose down -v
