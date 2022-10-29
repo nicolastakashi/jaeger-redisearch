@@ -4,15 +4,19 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"jaegerredissearch/internal/metrics"
 	"jaegerredissearch/internal/model"
 	"jaegerredissearch/internal/redis"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	jModel "github.com/jaegertracing/jaeger/model"
 	"github.com/rueian/rueidis"
 	"github.com/rueian/rueidis/om"
 )
+
+const serviceIndexName = "services"
 
 type ServiceRepository struct {
 	logger     hclog.Logger
@@ -21,7 +25,7 @@ type ServiceRepository struct {
 }
 
 func NewServiceRepository(logger hclog.Logger, redisClient rueidis.Client) (*ServiceRepository, error) {
-	repository := om.NewJSONRepository("services", model.Service{}, redisClient)
+	repository := om.NewJSONRepository(serviceIndexName, model.Service{}, redisClient)
 	if _, ok := repository.(*om.JSONRepository[model.Service]); ok {
 		createServiceIndex(repository)
 	}
@@ -43,6 +47,7 @@ func createServiceIndex(repository om.Repository[model.Service]) {
 
 func (s *ServiceRepository) WriteService(context context.Context, jaegerSpan *jModel.Span) error {
 	s.mu.Lock()
+	writeStart := time.Now()
 	defer s.mu.Unlock()
 
 	hash := hashCode(jaegerSpan)
@@ -67,8 +72,12 @@ func (s *ServiceRepository) WriteService(context context.Context, jaegerSpan *jM
 	err = s.repository.Save(context, newSvc)
 
 	if err != nil {
+		metrics.WritesLantency.WithLabelValues(serviceIndexName, "Error").Observe(time.Since(writeStart).Seconds())
 		return err
 	}
+
+	metrics.WritesLantency.WithLabelValues(serviceIndexName, "Ok").Observe(time.Since(writeStart).Seconds())
+	metrics.WritesTotal.WithLabelValues(serviceIndexName).Inc()
 
 	return nil
 }

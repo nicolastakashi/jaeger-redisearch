@@ -12,7 +12,9 @@ services:
       - ./configs/config.yaml:/etc/jaeger-redisresearch/config.yaml
     ports:
       - "6831:6831/udp"
+      - "14269:14269"
       - "16686:16686"
+      - "9090:9090"
   hotrod:
     image: jaegertracing/example-hotrod:latest
     network_mode: host

@@ -3,15 +3,19 @@ package repository
 import (
 	"context"
 	"fmt"
+	"jaegerredissearch/internal/metrics"
 	"jaegerredissearch/internal/model"
 	"jaegerredissearch/internal/redis"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	jModel "github.com/jaegertracing/jaeger/model"
 	"github.com/rueian/rueidis"
 	"github.com/rueian/rueidis/om"
 )
+
+const spanIndexName = "spans"
 
 type SpanRepository struct {
 	logger     hclog.Logger
@@ -20,7 +24,7 @@ type SpanRepository struct {
 }
 
 func NewSpanRepository(logger hclog.Logger, redisClient rueidis.Client) (*SpanRepository, error) {
-	repository := om.NewJSONRepository("spans", model.Span{}, redisClient)
+	repository := om.NewJSONRepository(spanIndexName, model.Span{}, redisClient)
 	if _, ok := repository.(*om.JSONRepository[model.Span]); ok {
 		createSpanIndex(repository)
 	}
@@ -60,6 +64,8 @@ func createSpanIndex(repository om.Repository[model.Span]) {
 }
 
 func (s *SpanRepository) WriteSpan(context context.Context, jSpan *jModel.Span) error {
+	writeStart := time.Now()
+
 	span := s.repository.NewEntity()
 
 	span.TraceID = jSpan.TraceID.String()
@@ -76,19 +82,28 @@ func (s *SpanRepository) WriteSpan(context context.Context, jSpan *jModel.Span) 
 	err := s.repository.Save(context, span)
 
 	if err != nil {
+		metrics.WritesLantency.WithLabelValues(spanIndexName, "Error").Observe(time.Since(writeStart).Seconds())
 		return err
 	}
+
+	metrics.WritesLantency.WithLabelValues(spanIndexName, "Ok").Observe(time.Since(writeStart).Seconds())
+	metrics.WritesTotal.WithLabelValues(spanIndexName).Inc()
 
 	return nil
 }
 
 func (s *SpanRepository) GetTracesId(context context.Context, queryParameters model.TraceQueryParameters) ([]string, error) {
+	defer metrics.ReadsTotal.WithLabelValues(spanIndexName, "get_traces_id")
+
+	readStart := time.Now()
+
 	cursor, err := s.repository.Aggregate(context, func(search om.FtAggregateIndex) om.Completed {
 		query := buildQueryFilter(queryParameters)
 		return search.Query(query).LoadAll().Groupby(1).Property("@traceID").Reduce("COUNT").Nargs(0).Build()
 	})
 
 	if err != nil {
+		metrics.ReadLatency.WithLabelValues(spanIndexName, "Error", "get_traces_id").Observe(time.Since(readStart).Seconds())
 		s.logger.Error(err.Error())
 		return nil, err
 	}
@@ -98,6 +113,7 @@ func (s *SpanRepository) GetTracesId(context context.Context, queryParameters mo
 
 	c, err := cursor.Read(context)
 	if err != nil {
+		metrics.ReadLatency.WithLabelValues(spanIndexName, "Error", "get_traces_id").Observe(time.Since(readStart).Seconds())
 		s.logger.Error(err.Error())
 		return nil, err
 	}
@@ -106,16 +122,21 @@ func (s *SpanRepository) GetTracesId(context context.Context, queryParameters mo
 		services[i] = s["traceID"]
 	}
 
+	metrics.ReadLatency.WithLabelValues(spanIndexName, "Ok", "get_traces_id").Observe(time.Since(readStart).Seconds())
 	return services, nil
 }
 
 func (s *SpanRepository) GetTracesById(context context.Context, ids []string) (map[string]*jModel.Trace, error) {
+	defer metrics.ReadsTotal.WithLabelValues(spanIndexName, "get_traces_by_id")
+	readStart := time.Now()
+
 	_, spans, err := s.repository.Search(context, func(search om.FtSearchIndex) om.Completed {
 		query := fmt.Sprintf("@traceID:(%s)", strings.Join(ids, "|"))
 		return search.Query(query).Build()
 	})
 
 	if err != nil {
+		metrics.ReadLatency.WithLabelValues(spanIndexName, "Error", "get_traces_by_id").Observe(time.Since(readStart).Seconds())
 		s.logger.Error(err.Error())
 		return nil, err
 	}
@@ -147,20 +168,8 @@ func (s *SpanRepository) GetTracesById(context context.Context, ids []string) (m
 
 		tracesMap[span.TraceID].Spans = append(tracesMap[span.TraceID].Spans, &s)
 	}
+	metrics.ReadLatency.WithLabelValues(spanIndexName, "Ok", "get_traces_by_id").Observe(time.Since(readStart).Seconds())
 	return tracesMap, nil
-}
-
-func (s *SpanRepository) GetSpans(context context.Context, service string) ([]*model.Span, error) {
-	_, records, err := s.repository.Search(context, func(search om.FtSearchIndex) om.Completed {
-		query := fmt.Sprintf("@processServiceName:%s", redis.Tokenization(service))
-		return search.Query(query).Build()
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return records, nil
 }
 
 func buildQueryFilter(queryParameters model.TraceQueryParameters) string {

@@ -2,9 +2,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"jaegerredissearch/internal/model"
 	"jaegerredissearch/internal/repository"
 	"jaegerredissearch/internal/store"
+	"net/http"
 	"os"
 	"strings"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/jaegertracing/jaeger/plugin/storage/grpc/shared"
 	"github.com/jaegertracing/jaeger/storage/dependencystore"
 	"github.com/jaegertracing/jaeger/storage/spanstore"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rueian/rueidis"
 	"github.com/spf13/viper"
 )
@@ -70,6 +73,14 @@ func main() {
 		logger.Error("error to create span repository", err)
 		os.Exit(1)
 	}
+
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		err = http.ListenAndServe(fmt.Sprintf(":%v", config.MetricsPort), nil)
+		if err != nil {
+			logger.Error("Failed to listen for metrics endpoint", "error", err)
+		}
+	}()
 
 	plugin := &RedisStorePlugin{
 		writer: store.NewSpanWriter(logger, spanRepository, serviceRepository),

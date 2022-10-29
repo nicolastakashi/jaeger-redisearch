@@ -1,3 +1,4 @@
+metrics_port: 9090
 redis_write_timeout: 5s
 redis_addresses:
   - localhost:6379
