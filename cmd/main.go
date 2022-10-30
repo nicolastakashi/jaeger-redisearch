@@ -3,12 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"jaegerredissearch/internal/model"
-	"jaegerredissearch/internal/repository"
-	"jaegerredissearch/internal/store"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/nicolastakashi/jaeger-redisearch/internal/model"
+	"github.com/nicolastakashi/jaeger-redisearch/internal/repository"
+	"github.com/nicolastakashi/jaeger-redisearch/internal/store"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/jaegertracing/jaeger/plugin/storage/grpc"
@@ -27,7 +28,7 @@ func main() {
 	flag.Parse()
 
 	logger := hclog.New(&hclog.LoggerOptions{
-		Name:       "jaeger-redissearch",
+		Name:       "jaeger-redisearch",
 		Level:      hclog.Warn, // Jaeger only captures >= Warn, so don't bother logging below Warn
 		JSONFormat: true,
 	})

@@ -5,5 +5,6 @@ type Operation struct {
 	Ver           int64  `json:"ver" redis:",ver"` // the redis:",ver" is required to do optimistic locking to prevent lost update
 	ServiceName   string `json:"service"`
 	OperationName string `json:"operation"`
+	SpanKind      string `json:"span_kind"`
 	Hash          string `json:"hash"`
 }

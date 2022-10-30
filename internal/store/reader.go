@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"jaegerredissearch/internal/metrics"
-	"jaegerredissearch/internal/model"
-	"jaegerredissearch/internal/repository"
 	"time"
+
+	"github.com/nicolastakashi/jaeger-redisearch/internal/metrics"
+	"github.com/nicolastakashi/jaeger-redisearch/internal/model"
+	"github.com/nicolastakashi/jaeger-redisearch/internal/redis"
+	"github.com/nicolastakashi/jaeger-redisearch/internal/repository"
 
 	"github.com/hashicorp/go-hclog"
 	jModel "github.com/jaegertracing/jaeger/model"
@@ -75,9 +77,10 @@ func (s *SpanReader) GetOperations(ctx context.Context, query spanstore.Operatio
 	}
 
 	array := make([]spanstore.Operation, len(operations))
-	for i, s := range operations {
+	for i, operation := range operations {
 		array[i] = spanstore.Operation{
-			Name: s,
+			Name:     redis.UnTokenization(operation.OperationName),
+			SpanKind: operation.SpanKind,
 		}
 	}
 

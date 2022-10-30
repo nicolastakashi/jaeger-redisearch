@@ -4,7 +4,7 @@ RELEASE=1
 REVISION ?= $(shell git rev-parse HEAD)
 BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 BINARY_FOLDER=bin
-BINARY_NAME=jaeger-redissearch
+BINARY_NAME=jaeger-redisearch
 ARTIFACT_NAME=ntakashi/$(BINARY_NAME)
 GOCMD=go
 GOMAIN=./cmd/main.go
@@ -57,3 +57,10 @@ run-all: build
 
 clean:
 	@docker-compose down -v
+
+.PHONY: integration-test
+integration-test: build
+	STORAGE=grpc-plugin \
+	PLUGIN_BINARY_PATH=$(PWD)/bin/jaeger-redisearch \
+	PLUGIN_CONFIG_PATH=$(PWD)/configs/config.yaml \
+	go test ./integration -v

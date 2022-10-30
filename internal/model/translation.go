@@ -2,10 +2,11 @@ package model
 
 import (
 	"fmt"
-	"jaegerredissearch/internal/redis"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/nicolastakashi/jaeger-redisearch/internal/redis"
 
 	jModel "github.com/jaegertracing/jaeger/model"
 )
@@ -40,13 +41,13 @@ func ConvertKeyValuesFromJaeger(keyValues jModel.KeyValues) []KeyValue {
 	kvs := make([]KeyValue, 0)
 	for _, kv := range keyValues {
 		if kv.GetVType() != jModel.BinaryType {
-			kvs = append(kvs, convertKeyValueFromJaeger(kv))
+			kvs = append(kvs, ConvertKeyValueFromJaeger(kv))
 		}
 	}
 	return kvs
 }
 
-func convertKeyValueFromJaeger(kv jModel.KeyValue) KeyValue {
+func ConvertKeyValueFromJaeger(kv jModel.KeyValue) KeyValue {
 	return KeyValue{
 		Key:   redis.Tokenization(kv.Key),
 		Type:  ValueType(strings.ToLower(kv.VType.String())),

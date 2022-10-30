@@ -3,11 +3,12 @@ package repository
 import (
 	"context"
 	"fmt"
-	"jaegerredissearch/internal/metrics"
-	"jaegerredissearch/internal/model"
-	"jaegerredissearch/internal/redis"
 	"strings"
 	"time"
+
+	"github.com/nicolastakashi/jaeger-redisearch/internal/metrics"
+	"github.com/nicolastakashi/jaeger-redisearch/internal/model"
+	"github.com/nicolastakashi/jaeger-redisearch/internal/redis"
 
 	"github.com/hashicorp/go-hclog"
 	jModel "github.com/jaegertracing/jaeger/model"

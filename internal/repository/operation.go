@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
-	"jaegerredissearch/internal/metrics"
-	"jaegerredissearch/internal/model"
-	"jaegerredissearch/internal/redis"
 	"sync"
 	"time"
+
+	"github.com/nicolastakashi/jaeger-redisearch/internal/metrics"
+	"github.com/nicolastakashi/jaeger-redisearch/internal/model"
+	"github.com/nicolastakashi/jaeger-redisearch/internal/redis"
 
 	"github.com/hashicorp/go-hclog"
 	jModel "github.com/jaegertracing/jaeger/model"
@@ -40,6 +41,7 @@ func createOperationIndex(repository om.Repository[model.Operation]) {
 	repository.CreateIndex(context.TODO(), func(schema om.FtCreateSchema) om.Completed {
 		text := schema.FieldName("$.service").As("service").Text()
 		text = text.FieldName("$.operation").As("operation").Text()
+		text = text.FieldName("$.span_kind").As("span_kind").Text()
 		text = text.FieldName("$.hash").As("hash").Text()
 		return text.Build()
 	})
@@ -64,9 +66,17 @@ func (s *OperationRepository) Write(context context.Context, jaegerSpan *jModel.
 		return nil
 	}
 
+	spanKind := ""
+	for _, tag := range jaegerSpan.Tags {
+		if tag.Key == "span.kind" {
+			spanKind = tag.AsString()
+		}
+	}
+
 	newSvc := s.repository.NewEntity()
 	newSvc.ServiceName = redis.Tokenization(jaegerSpan.Process.ServiceName)
 	newSvc.OperationName = redis.Tokenization(jaegerSpan.OperationName)
+	newSvc.SpanKind = spanKind
 	newSvc.Hash = hash
 
 	err = s.repository.Save(context, newSvc)
@@ -107,8 +117,8 @@ func (s *OperationRepository) GetServices(context context.Context) ([]string, er
 	return services, nil
 }
 
-func (s *OperationRepository) GetOperationsByService(context context.Context, service string) ([]string, error) {
-	n, records, err := s.repository.Search(context, func(search om.FtSearchIndex) om.Completed {
+func (s *OperationRepository) GetOperationsByService(context context.Context, service string) ([]*model.Operation, error) {
+	_, records, err := s.repository.Search(context, func(search om.FtSearchIndex) om.Completed {
 		query := fmt.Sprintf("@service:%s", redis.Tokenization(service))
 		return search.Query(query).Build()
 	})
@@ -117,13 +127,7 @@ func (s *OperationRepository) GetOperationsByService(context context.Context, se
 		return nil, err
 	}
 
-	operations := make([]string, n)
-
-	for i, r := range records {
-		operations[i] = redis.UnTokenization(r.OperationName)
-	}
-
-	return operations, nil
+	return records, nil
 }
 
 func hashCode(jaegerSpan *jModel.Span) string {
