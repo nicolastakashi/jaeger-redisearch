@@ -52,7 +52,8 @@ run-redis:
 run-jaeger:
 	@docker-compose up jaeger
 
-run-all: build
+.PHONY: run
+run: build
 	@docker-compose up
 
 clean:
