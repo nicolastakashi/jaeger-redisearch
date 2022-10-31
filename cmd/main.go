@@ -61,14 +61,14 @@ func main() {
 
 	defer c.Close()
 
-	spanRepository, err := repository.NewSpanRepository(logger, c)
+	spanRepository, err := repository.NewSpanRepository(logger, c, config)
 
 	if err != nil {
 		logger.Error("error to create span repository", err)
 		os.Exit(1)
 	}
 
-	serviceRepository, err := repository.NewOperationRepository(logger, c)
+	serviceRepository, err := repository.NewOperationRepository(logger, c, config)
 
 	if err != nil {
 		logger.Error("error to create span repository", err)

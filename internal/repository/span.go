@@ -22,9 +22,10 @@ type SpanRepository struct {
 	logger     hclog.Logger
 	repository om.Repository[model.Span]
 	client     rueidis.Client
+	config     model.Configuration
 }
 
-func NewSpanRepository(logger hclog.Logger, redisClient rueidis.Client) (*SpanRepository, error) {
+func NewSpanRepository(logger hclog.Logger, redisClient rueidis.Client, config model.Configuration) (*SpanRepository, error) {
 	repository := om.NewJSONRepository(spanIndexName, model.Span{}, redisClient)
 	if _, ok := repository.(*om.JSONRepository[model.Span]); ok {
 		createSpanIndex(repository)
@@ -33,6 +34,7 @@ func NewSpanRepository(logger hclog.Logger, redisClient rueidis.Client) (*SpanRe
 		logger:     logger,
 		repository: repository,
 		client:     redisClient,
+		config:     config,
 	}, nil
 }
 
@@ -86,6 +88,8 @@ func (s *SpanRepository) WriteSpan(context context.Context, jSpan *jModel.Span) 
 		metrics.WritesLantency.WithLabelValues(spanIndexName, "Error").Observe(time.Since(writeStart).Seconds())
 		return err
 	}
+
+	setTTL(context, s.client, fmt.Sprintf("%v:%v", spanIndexName, span.Key), s.config.RedisTTL)
 
 	metrics.WritesLantency.WithLabelValues(spanIndexName, "Ok").Observe(time.Since(writeStart).Seconds())
 	metrics.WritesTotal.WithLabelValues(spanIndexName).Inc()

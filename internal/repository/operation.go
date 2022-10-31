@@ -23,9 +23,11 @@ type OperationRepository struct {
 	logger     hclog.Logger
 	repository om.Repository[model.Operation]
 	mu         sync.Mutex
+	client     rueidis.Client
+	config     model.Configuration
 }
 
-func NewOperationRepository(logger hclog.Logger, redisClient rueidis.Client) (*OperationRepository, error) {
+func NewOperationRepository(logger hclog.Logger, redisClient rueidis.Client, config model.Configuration) (*OperationRepository, error) {
 	repository := om.NewJSONRepository(operationIndexName, model.Operation{}, redisClient)
 	if _, ok := repository.(*om.JSONRepository[model.Operation]); ok {
 		createOperationIndex(repository)
@@ -34,6 +36,8 @@ func NewOperationRepository(logger hclog.Logger, redisClient rueidis.Client) (*O
 		logger:     logger,
 		repository: repository,
 		mu:         sync.Mutex{},
+		client:     redisClient,
+		config:     config,
 	}, nil
 }
 
@@ -86,6 +90,8 @@ func (s *OperationRepository) Write(context context.Context, jaegerSpan *jModel.
 		return err
 	}
 
+	setTTL(context, s.client, fmt.Sprintf("%v:%v", operationIndexName, newSvc.Key), s.config.RedisTTL)
+
 	metrics.WritesLantency.WithLabelValues(operationIndexName, "Ok").Observe(time.Since(writeStart).Seconds())
 	metrics.WritesTotal.WithLabelValues(operationIndexName).Inc()
 
@@ -135,4 +141,8 @@ func hashCode(jaegerSpan *jModel.Span) string {
 	h.Write([]byte(jaegerSpan.Process.ServiceName))
 	h.Write([]byte(jaegerSpan.OperationName))
 	return fmt.Sprintf("%x", h.Sum64())
+}
+
+func setTTL(context context.Context, client rueidis.Client, key string, ttl time.Duration) {
+	client.Do(context, client.B().Expire().Key(key).Seconds(int64(ttl.Seconds())).Build())
 }
