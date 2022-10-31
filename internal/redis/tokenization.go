@@ -2,13 +2,20 @@ package redis
 
 import "strings"
 
-var tokenizationReplacer = strings.NewReplacer("-", "\\-", ".", "\\.", ":", "\\:", ";", "\\;", "{", "\\{", "}", "\\}", " ", "\\ ")
-var unTokenizationReplacer = strings.NewReplacer("\\-", "-", "\\.", ".", "\\:", ":", "\\;", ";", "\\{", "{", "\\}", "}", "\\ ", " ")
+const (
+	field_tokenization = ",.<>{}[]\"':;!@#$%^&*()-+=~"
+)
 
-func Tokenization(s string) string {
-	return tokenizationReplacer.Replace(UnTokenization(s))
+func Tokenization(value string) string {
+	for _, char := range field_tokenization {
+		value = strings.Replace(value, string(char), ("\\" + string(char)), -1)
+	}
+	return value
 }
 
-func UnTokenization(s string) string {
-	return unTokenizationReplacer.Replace(s)
+func UnTokenization(value string) string {
+	for _, char := range field_tokenization {
+		value = strings.Replace(value, ("\\" + string(char)), string(char), -1)
+	}
+	return value
 }
