@@ -9,6 +9,8 @@ ARTIFACT_NAME=ntakashi/$(BINARY_NAME)
 GOCMD=go
 GOMAIN=./cmd/main.go
 GOBUILD=$(GOCMD) build
+GOOS ?= $(shell go env GOOS)
+GOARCH ?= $(shell go env GOARCH)
 ENVVARS=GOOS=linux CGO_ENABLED=0
 
 LDFLAGS=-w -extldflags "-static" \
@@ -107,3 +109,9 @@ integration-test: build
 	PLUGIN_BINARY_PATH=$(PWD)/bin/jaeger-redisearch \
 	PLUGIN_CONFIG_PATH=$(PWD)/configs/config.yaml \
 	go test ./integration
+
+docker-build: build
+	@DOCKER_BUILDKIT=1 docker build -t ${ARTIFACT_NAME}:${RELEASE_VERSION} -f ./build/package/Dockerfile --progress=plain .
+
+docker-push:
+	@DOCKER_BUILDKIT=1 docker push $(ARTIFACT_NAME):${RELEASE_VERSION}
