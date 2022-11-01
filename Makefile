@@ -106,7 +106,7 @@ clean:
 	@docker-compose down -v
 
 .PHONY: integration-test
-integration-test: build-all-platforms
+integration-test:
 	STORAGE=grpc-plugin \
 	PLUGIN_BINARY_PATH=$(PWD)/bin/jaeger-redisearch-linux-amd64 \
 	PLUGIN_CONFIG_PATH=$(PWD)/configs/config.yaml \
