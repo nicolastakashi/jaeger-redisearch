@@ -1,4 +1,4 @@
-metrics_port: 9090
+http_port: 9090
 redis_ttl: 300s
 redis_write_timeout: 5s
 redis_addresses:

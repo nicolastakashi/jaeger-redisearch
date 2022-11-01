@@ -10,13 +10,15 @@ import (
 	"github.com/nicolastakashi/jaeger-redisearch/internal/model"
 	"github.com/nicolastakashi/jaeger-redisearch/internal/repository"
 	"github.com/nicolastakashi/jaeger-redisearch/internal/store"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	_ "net/http/pprof"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/jaegertracing/jaeger/plugin/storage/grpc"
 	"github.com/jaegertracing/jaeger/plugin/storage/grpc/shared"
 	"github.com/jaegertracing/jaeger/storage/dependencystore"
 	"github.com/jaegertracing/jaeger/storage/spanstore"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rueian/rueidis"
 	"github.com/spf13/viper"
 )
@@ -77,7 +79,8 @@ func main() {
 
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		err = http.ListenAndServe(fmt.Sprintf(":%v", config.MetricsPort), nil)
+		// http.Handle("/debug/pprof/heap", _)
+		err = http.ListenAndServe(fmt.Sprintf(":%v", config.HttpPort), nil)
 		if err != nil {
 			logger.Error("Failed to listen for metrics endpoint", "error", err)
 		}
