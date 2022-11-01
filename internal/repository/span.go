@@ -58,7 +58,12 @@ func createSpanIndex(repository om.Repository[model.Span]) {
 		tag = tag.FieldName("$.references[0:].traceID").As("refTraceID").Tag()
 		tag = tag.FieldName("$.references[0:].spanID").As("refSpanID").Tag()
 
-		numeric := tag.FieldName("$.startTime").As("startTime").Numeric()
+		tag = tag.FieldName("$.logs[0:].fields[0:].key").As("logFieldKey").Tag()
+		tag = tag.FieldName("$.logs[0:].fields[0:].type").As("logFieldType").Tag()
+		tag = tag.FieldName("$.logs[0:].fields[0:].value").As("logFieldValue").Tag()
+
+		numeric := tag.FieldName("$.logs[0:].timestamp").As("logTimestamp").Numeric()
+		numeric = numeric.FieldName("$.startTime").As("startTime").Numeric()
 		numeric = numeric.FieldName("$.flags").As("flags").Numeric()
 		numeric = numeric.FieldName("$.duration").As("duration").Numeric()
 
@@ -66,7 +71,7 @@ func createSpanIndex(repository om.Repository[model.Span]) {
 	})
 }
 
-func (s *SpanRepository) WriteSpan(context context.Context, jSpan *jModel.Span) error {
+func (s *SpanRepository) Write(context context.Context, jSpan *jModel.Span) error {
 	writeStart := time.Now()
 
 	span := s.repository.NewEntity()
@@ -80,6 +85,7 @@ func (s *SpanRepository) WriteSpan(context context.Context, jSpan *jModel.Span) 
 	span.ProcessID = jSpan.ProcessID
 	span.Process = model.ConvertProcessFromJager(jSpan.Process)
 	span.Tags = model.ConvertKeyValuesFromJaeger(jSpan.Tags)
+	span.Logs = model.ConvertLogFromJaeger(jSpan.Logs)
 	span.Warnings = jSpan.Warnings
 
 	err := s.repository.Save(context, span)
@@ -108,7 +114,7 @@ func (s *SpanRepository) GetTracesId(context context.Context, queryParameters mo
 		return nil, err
 	}
 
-	services := []string{}
+	traceIds := []string{}
 	c, err := cursor.Read(context)
 	if err != nil {
 		s.logger.Error(err.Error())
@@ -116,16 +122,18 @@ func (s *SpanRepository) GetTracesId(context context.Context, queryParameters mo
 	}
 
 	for _, s := range c {
-		services = append(services, s["traceID"])
+		traceIds = append(traceIds, s["traceID"])
 	}
 
-	return services, nil
+	return traceIds, nil
 }
 
 func (s *SpanRepository) GetTracesById(context context.Context, ids []string) (map[string]*jModel.Trace, error) {
 	_, spans, err := s.repository.Search(context, func(search om.FtSearchIndex) om.Completed {
 		query := fmt.Sprintf("@traceID:(%s)", strings.Join(ids, "|"))
-		return search.Query(query).Build()
+		// TODO: 1m limit until this issue is solved.
+		// https://github.com/rueian/rueidis/issues/116
+		return search.Query(query).Limit().OffsetNum(0, 100000).Build()
 	})
 
 	if err != nil {
@@ -152,6 +160,7 @@ func (s *SpanRepository) GetTracesById(context context.Context, ids []string) (m
 			Tags:       tags,
 			StartTime:  jModel.EpochMicrosecondsAsTime(span.StartTime),
 			Duration:   jModel.MicrosecondsAsDuration(span.Duration),
+			Logs:       model.ConvertLogToJaeger(span.Logs),
 			Process: &jModel.Process{
 				ServiceName: redis.UnTokenization(span.Process.ServiceName),
 				Tags:        pTags,

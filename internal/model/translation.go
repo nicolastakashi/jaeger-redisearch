@@ -8,6 +8,7 @@ import (
 
 	"github.com/nicolastakashi/jaeger-redisearch/internal/redis"
 
+	"github.com/jaegertracing/jaeger/model"
 	jModel "github.com/jaegertracing/jaeger/model"
 )
 
@@ -53,6 +54,17 @@ func ConvertKeyValueFromJaeger(kv jModel.KeyValue) KeyValue {
 		Type:  ValueType(strings.ToLower(kv.VType.String())),
 		Value: redis.Tokenization(kv.AsString()),
 	}
+}
+
+func ConvertLogFromJaeger(jLogs []jModel.Log) []Log {
+	logs := make([]Log, 0)
+	for _, jLog := range jLogs {
+		logs = append(logs, Log{
+			Timestamp: model.TimeAsEpochMicroseconds(jLog.Timestamp),
+			Fields:    ConvertKeyValuesFromJaeger(jLog.Fields),
+		})
+	}
+	return logs
 }
 
 func TimeAsEpochMicroseconds(t time.Time) uint64 {
@@ -132,11 +144,23 @@ func convertKeyValueToJaeger(tag *KeyValue) (jModel.KeyValue, error) {
 		}
 		return jModel.Int64(redis.UnTokenization(tag.Key), value), nil
 	case Float64Type:
-		value, err := strconv.ParseFloat(tagValue, 64)
+		value, err := strconv.ParseFloat(redis.UnTokenization(tagValue), 64)
 		if err != nil {
 			return jModel.KeyValue{}, err
 		}
 		return jModel.Float64(redis.UnTokenization(tag.Key), value), nil
 	}
 	return jModel.KeyValue{}, fmt.Errorf("not a valid ValueType string %s", string(tag.Type))
+}
+
+func ConvertLogToJaeger(logs []Log) []jModel.Log {
+	jLogs := make([]jModel.Log, 0)
+	for _, log := range logs {
+		fields, _ := ConvertKeyValuesToJaeger(log.Fields)
+		jLogs = append(jLogs, jModel.Log{
+			Timestamp: jModel.EpochMicrosecondsAsTime(log.Timestamp),
+			Fields:    fields,
+		})
+	}
+	return jLogs
 }

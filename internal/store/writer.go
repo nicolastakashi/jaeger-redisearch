@@ -31,7 +31,7 @@ func (s *SpanWriter) WriteSpan(ctx context.Context, span *jModel.Span) error {
 		return err
 	}
 
-	err = s.spanRepository.WriteSpan(ctx, span)
+	err = s.spanRepository.Write(ctx, span)
 	if err != nil {
 		s.logger.Error("error to write span", err)
 		return err

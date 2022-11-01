@@ -41,8 +41,8 @@ type Span struct {
 	ProcessID     string      `json:"processID"`
 	Process       Process     `json:"process,omitempty"`
 	Tags          []KeyValue  `json:"tags"`
-	// Logs          []Log       `json:"logs"`
-	Warnings []string `json:"warnings"`
+	Logs          []Log       `json:"logs"`
+	Warnings      []string    `json:"warnings"`
 }
 
 type Reference struct {

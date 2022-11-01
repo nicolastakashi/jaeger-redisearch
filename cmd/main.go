@@ -51,7 +51,7 @@ func main() {
 	c, err := rueidis.NewClient(rueidis.ClientOption{
 		InitAddress:      config.RedisAddresses,
 		ConnWriteTimeout: config.RedisWriteTimeout,
-		ClientName:       "jaeger-redis",
+		ClientName:       "jaeger-redisearch",
 	})
 
 	if err != nil {
