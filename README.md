@@ -11,7 +11,9 @@ RediSearch is a [source-available](https://github.com/RediSearch/RediSearch/blob
 
 ## How it works
 
-Jaeger data is stored in 2 tables. The first contains operations encoded in JSON. The second stores' key information about spans for searching and this is indexing spans by duration and tags.
+The Jaeger data is stored in two indexes. The first contains operations, while the second stores span information for searching.
+
+All data is saved in JSON format and is indexed by Service Name, Operation Name, Duration, Start Time, and Span Tags.
 
 ## Build & Run
 

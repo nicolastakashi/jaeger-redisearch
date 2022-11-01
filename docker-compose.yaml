@@ -5,12 +5,12 @@ services:
     image: jaegertracing/all-in-one:latest
     environment:
       - SPAN_STORAGE_TYPE=grpc-plugin
-      - GRPC_STORAGE_PLUGIN_BINARY=/usr/bin/jaeger-redisearch
+      - GRPC_STORAGE_PLUGIN_BINARY=/usr/bin/jaeger-redisearch-linux-amd64
       - GRPC_STORAGE_PLUGIN_CONFIGURATION_FILE=/etc/jaeger-redisearch/config.yaml
     depends_on:
       - redis
     volumes:
-      - ./bin/jaeger-redisearch:/usr/bin/jaeger-redisearch
+      - ./bin/jaeger-redisearch-linux-amd64:/usr/bin/jaeger-redisearch-linux-amd64
       - ./configs/config.yaml:/etc/jaeger-redisearch/config.yaml
     ports:
       - "6831:6831/udp"

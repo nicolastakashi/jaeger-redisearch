@@ -25,7 +25,49 @@ docker-push:
 	@DOCKER_BUILDKIT=1 docker push $(ARTIFACT_NAME):${RELEASE_VERSION}
 
 build:
-	$(ENVVARS) $(GOCMD) build -ldflags '$(LDFLAGS)' -o $(BINARY_FOLDER)/$(BINARY_NAME) -v $(GOMAIN)
+	$(GOCMD) build -ldflags '$(LDFLAGS)' -o $(BINARY_FOLDER)/$(BINARY_NAME)-$(GOOS)-$(GOARCH) -v $(GOMAIN)
+
+.PHONY: build-linux-amd64
+build-linux-amd64:
+	GOOS=linux CGO_ENABLED=0 GOARCH=amd64 $(MAKE) build
+
+.PHONY: build-linux-arm64
+build-linux-arm64:
+	GOOS=linux CGO_ENABLED=0 GOARCH=arm64 $(MAKE) build
+
+.PHONY: build-darwin-amd64
+build-darwin-amd64:
+	GOOS=darwin CGO_ENABLED=0 GOARCH=amd64 $(MAKE) build
+
+.PHONY: build-darwin-arm64
+build-darwin-arm64:
+	GOOS=darwin CGO_ENABLED=0 GOARCH=arm64 $(MAKE) build
+
+.PHONY: build-all-platforms
+build-all-platforms: build-linux-amd64 build-linux-arm64 build-darwin-amd64 build-darwin-arm64
+
+.PHONY: tar
+tar:
+	tar -czvf $(BINARY_NAME)-$(GOOS)-$(GOARCH).tar.gz  $(BINARY_FOLDER)/$(BINARY_NAME)-$(GOOS)-$(GOARCH)
+
+.PHONY: tar-linux-amd64
+tar-linux-amd64:
+	GOOS=linux GOARCH=amd64 $(MAKE) tar
+
+.PHONY: tar-linux-arm64
+tar-linux-arm64:
+	GOOS=linux GOARCH=arm64 $(MAKE) tar
+
+.PHONY: tar-darwin-amd64
+tar-darwin-amd64:
+	GOOS=darwin GOARCH=amd64 $(MAKE) tar
+
+.PHONY: tar-darwin-arm64
+tar-darwin-arm64:
+	GOOS=darwin GOARCH=arm64 $(MAKE) tar
+
+.PHONY: tar-all-platforms
+tar-all-platforms: tar-linux-amd64 tar-linux-arm64 tar-darwin-amd64 tar-darwin-arm64
 
 deps:
 	$(ENVVARS) $(GOCMD) mod download
@@ -53,7 +95,7 @@ run-jaeger:
 	@docker-compose up jaeger
 
 .PHONY: run
-run: build
+run: build-all-platforms
 	@docker-compose up
 
 clean:
@@ -64,4 +106,4 @@ integration-test: build
 	STORAGE=grpc-plugin \
 	PLUGIN_BINARY_PATH=$(PWD)/bin/jaeger-redisearch \
 	PLUGIN_CONFIG_PATH=$(PWD)/configs/config.yaml \
-	go test ./integration -v
+	go test ./integration
