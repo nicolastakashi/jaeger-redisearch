@@ -1,5 +1,25 @@
+## The maximum number of spans to fetch per trace.  Default 10.
+## Search complexity is O(n) where n is the number of the results in the result set.
+## For more information about Search Complexity check: https://redis.io/commands/ft.search/
+max_num_spans: 11000
+
+## HTTP port to collect metrics and profilers
 http_port: 9090
-redis_ttl: 300s
-redis_write_timeout: 5s
+
+## Set the configured value as a time out for the document
+## After the timeout has expired, the document will automatically be deleted
+## Default: 60s
+redis_ttl: 3600s
+
+## ConnWriteTimeout is applied net.Conn.SetWriteDeadline and periodic PING to redis
+## Since the Dialer.KeepAlive will not be triggered if there is data in the outgoing buffer,
+## ConnWriteTimeout should be set in order to detect local congestion or unresponsive redis server.
+## This default is ClientOption.Dialer.KeepAlive * (9+1), where 9 is the default of tcp_keepalive_probes on Linux.
+redis_write_timeout: 10s
+
+## redis_addresses point to redis nodes.
+## Rueidis will connect to them one by one and issue CLUSTER SLOT command to initialize the cluster client until success.
+## If len(InitAddress) == 1 and the address is not running in cluster mode, rueidis will fall back to the single client mode.
+## If ClientOption.Sentinel.MasterSet is set, then InitAddress will be used to connect sentinels\
 redis_addresses:
-  - redis:6379
+  - localhost:6379

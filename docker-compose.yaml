@@ -1,6 +1,7 @@
 version: '3.7'
 services:
   jaeger:
+    network_mode: host
     image: jaegertracing/all-in-one:latest
     environment:
       - SPAN_STORAGE_TYPE=grpc-plugin
@@ -17,6 +18,7 @@ services:
       - "16686:16686"
       - "9090:9090"
   hotrod:
+    network_mode: host
     image: jaegertracing/example-hotrod:latest
     ports: 
       - "8081:8080"
@@ -28,9 +30,10 @@ services:
       - jaeger
   
   tracegen:
+    network_mode: host
     image: jaegertracing/jaeger-tracegen:latest
     environment:
-      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_HOST=localhost
       - JAEGER_AGENT_PORT=6831
     command: ["-duration", "60s", "-workers", "10", "-pause", "250ms"]
     depends_on:

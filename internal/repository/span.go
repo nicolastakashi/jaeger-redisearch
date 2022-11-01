@@ -131,9 +131,7 @@ func (s *SpanRepository) GetTracesId(context context.Context, queryParameters mo
 func (s *SpanRepository) GetTracesById(context context.Context, ids []string) (map[string]*jModel.Trace, error) {
 	_, spans, err := s.repository.Search(context, func(search om.FtSearchIndex) om.Completed {
 		query := fmt.Sprintf("@traceID:(%s)", strings.Join(ids, "|"))
-		// TODO: 1m limit until this issue is solved.
-		// https://github.com/rueian/rueidis/issues/116
-		return search.Query(query).Limit().OffsetNum(0, 100000).Build()
+		return search.Query(query).Limit().OffsetNum(0, s.config.MaxNumSpans).Build()
 	})
 
 	if err != nil {

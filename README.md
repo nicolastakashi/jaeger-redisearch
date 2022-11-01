@@ -20,8 +20,7 @@ All data is saved in JSON format and is indexed by Service Name, Operation Name,
 You can just run the following command, to build your local environment with Jaeger, Redis, Plugin and HotRoad.
 
 ```bash
-make run-all
+make run
 ```
 
-After this you can access: [Jaeger UI](http://localhost:16686)
- and [HotRoad](http://localhost:8080)
+After this you can access: [Jaeger UI](http://localhost:16686) and [HotRoad](http://localhost:8080)
