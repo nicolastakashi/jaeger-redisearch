@@ -27,23 +27,23 @@ docker-push:
 	@DOCKER_BUILDKIT=1 docker push $(ARTIFACT_NAME):${RELEASE_VERSION}
 
 build:
-	$(GOCMD) build -ldflags '$(LDFLAGS)' -o $(BINARY_FOLDER)/$(BINARY_NAME)-$(GOOS)-$(GOARCH) -v $(GOMAIN)
+	CGO_ENABLED=0 $(GOCMD) build -ldflags '$(LDFLAGS)' -o $(BINARY_FOLDER)/$(BINARY_NAME)-$(GOOS)-$(GOARCH) -v $(GOMAIN)
 
 .PHONY: build-linux-amd64
 build-linux-amd64:
-	GOOS=linux CGO_ENABLED=0 GOARCH=amd64 $(MAKE) build
+	GOOS=linux GOARCH=amd64 $(MAKE) build
 
 .PHONY: build-linux-arm64
 build-linux-arm64:
-	GOOS=linux CGO_ENABLED=0 GOARCH=arm64 $(MAKE) build
+	GOOS=linux GOARCH=arm64 $(MAKE) build
 
 .PHONY: build-darwin-amd64
 build-darwin-amd64:
-	GOOS=darwin CGO_ENABLED=0 GOARCH=amd64 $(MAKE) build
+	GOOS=darwin GOARCH=amd64 $(MAKE) build
 
 .PHONY: build-darwin-arm64
 build-darwin-arm64:
-	GOOS=darwin CGO_ENABLED=0 GOARCH=arm64 $(MAKE) build
+	GOOS=darwin GOARCH=arm64 $(MAKE) build
 
 .PHONY: build-all-platforms
 build-all-platforms: build-linux-amd64 build-linux-arm64 build-darwin-amd64 build-darwin-arm64
@@ -106,7 +106,7 @@ clean:
 	@docker-compose down -v
 
 .PHONY: integration-test
-integration-test:
+integration-test: build
 	STORAGE=grpc-plugin \
 	PLUGIN_BINARY_PATH=$(PWD)/bin/jaeger-redisearch-linux-amd64 \
 	PLUGIN_CONFIG_PATH=$(PWD)/configs/config.yaml \
