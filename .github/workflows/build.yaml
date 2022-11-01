@@ -1,0 +1,65 @@
+name: Build, test, format and lint
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-binaries:
+    runs-on: ubuntu-latest
+    name: Build binary for ${{ matrix.platform.name }}
+    strategy:
+      matrix:
+        platform:
+        - name: linux on amd64
+          task: build-linux-amd64
+        - name: linux on arm64
+          task: build-linux-arm64
+        - name: osx on amd64
+          task: build-darwin-amd64
+        - name: osx on arm64
+          task: build-darwin-arm64
+    steps:
+      - uses: actions/checkout@v2.3.4
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ^1.19
+
+      - name: Build binaries
+        run: make ${{ matrix.platform.task }}
+
+  format-lint:
+    runs-on: ubuntu-latest
+    name: Format and lint
+    steps:
+      - uses: actions/checkout@v2.3.4
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ^1.19
+
+      - name: Lint
+        run: make lint
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    name: Integration tests
+    steps:
+      - uses: actions/checkout@v2.3.4
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: ^1.19
+
+      - name: Setup database
+        run: docker run --rm -d -p 6379:6379 --name test-redis-search --ulimit nofile=262144:262144 redislabs/redisearch:2.6.1
+
+      - name: Run integration tests
+        run: make integration-test

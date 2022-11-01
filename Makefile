@@ -85,6 +85,8 @@ tests:
 
 all: fmt vet tests deps build
 
+lint: fmt vet tests deps
+
 .PHONY: build
 
 run-hotrod:
