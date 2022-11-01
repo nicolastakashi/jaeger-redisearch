@@ -119,7 +119,9 @@ func TestGRPCStorage(t *testing.T) {
 		pluginBinaryPath: binaryPath,
 		pluginConfigPath: configPath,
 		StorageIntegration: integration.StorageIntegration{
-			SkipList: []string{"FindTraces", "GetDependencies"},
+			SkipList: []string{
+				"GetDependencies",
+			},
 		},
 		client: client,
 	}

@@ -54,6 +54,10 @@ func createSpanIndex(repository om.Repository[model.Span]) {
 		tag = tag.FieldName("$.tags[0:].type").As("tagType").Tag()
 		tag = tag.FieldName("$.tags[0:].value").As("tagValue").Tag()
 
+		tag = tag.FieldName("$.mTags[0:].key").As("mTagKey").Tag()
+		tag = tag.FieldName("$.mTags[0:].type").As("mTagType").Tag()
+		tag = tag.FieldName("$.mTags[0:].value").As("mTagValue").Tag()
+
 		tag = tag.FieldName("$.references[0:].refType").As("refType").Tag()
 		tag = tag.FieldName("$.references[0:].traceID").As("refTraceID").Tag()
 		tag = tag.FieldName("$.references[0:].spanID").As("refSpanID").Tag()
@@ -79,12 +83,13 @@ func (s *SpanRepository) Write(context context.Context, jSpan *jModel.Span) erro
 	span.TraceID = jSpan.TraceID.String()
 	span.SpanID = jSpan.SpanID.String()
 	span.OperationName = redis.Tokenization(jSpan.OperationName)
-	span.StartTime = model.TimeAsEpochMicroseconds(jSpan.StartTime)
-	span.Duration = model.DurationAsMicroseconds(jSpan.Duration)
+	span.StartTime = jModel.TimeAsEpochMicroseconds(jSpan.StartTime)
+	span.Duration = jModel.DurationAsMicroseconds(jSpan.Duration)
 	span.References = model.ConvertReferencesFromJaeger(jSpan)
 	span.ProcessID = jSpan.ProcessID
 	span.Process = model.ConvertProcessFromJager(jSpan.Process)
 	span.Tags = model.ConvertKeyValuesFromJaeger(jSpan.Tags)
+	span.MultipleTags = model.MergeTags(jSpan)
 	span.Logs = model.ConvertLogFromJaeger(jSpan.Logs)
 	span.Warnings = jSpan.Warnings
 
@@ -152,13 +157,14 @@ func (s *SpanRepository) GetTracesById(context context.Context, ids []string) (m
 		pTags, _ := model.ConvertKeyValuesToJaeger(span.Process.Tags)
 
 		s := jModel.Span{
-			TraceID:    tId,
-			SpanID:     sId,
-			References: refs,
-			Tags:       tags,
-			StartTime:  jModel.EpochMicrosecondsAsTime(span.StartTime),
-			Duration:   jModel.MicrosecondsAsDuration(span.Duration),
-			Logs:       model.ConvertLogToJaeger(span.Logs),
+			TraceID:       tId,
+			SpanID:        sId,
+			References:    refs,
+			Tags:          tags,
+			StartTime:     jModel.EpochMicrosecondsAsTime(span.StartTime),
+			Duration:      jModel.MicrosecondsAsDuration(span.Duration),
+			Logs:          model.ConvertLogToJaeger(span.Logs),
+			OperationName: redis.UnTokenization(span.OperationName),
 			Process: &jModel.Process{
 				ServiceName: redis.UnTokenization(span.Process.ServiceName),
 				Tags:        pTags,
@@ -178,28 +184,28 @@ func buildQueryFilter(queryParameters model.TraceQueryParameters) string {
 	}
 
 	if queryParameters.DurationMax > 0 && queryParameters.DurationMin == 0 {
-		query += fmt.Sprintf(" @duration:[-inf %v]", model.DurationAsMicroseconds(queryParameters.DurationMax))
+		query += fmt.Sprintf(" @duration:[-inf %v]", jModel.DurationAsMicroseconds(queryParameters.DurationMax))
 	}
 
 	if queryParameters.DurationMin > 0 && queryParameters.DurationMax == 0 {
-		query += fmt.Sprintf(" @duration:[%v +inf]", model.DurationAsMicroseconds(queryParameters.DurationMin))
+		query += fmt.Sprintf(" @duration:[%v +inf]", jModel.DurationAsMicroseconds(queryParameters.DurationMin))
 	}
 
 	if queryParameters.DurationMax > 0 && queryParameters.DurationMin > 0 {
 		query += fmt.Sprintf(" @duration:[%v %v]",
-			model.DurationAsMicroseconds(queryParameters.DurationMin),
-			model.DurationAsMicroseconds(queryParameters.DurationMax))
+			jModel.DurationAsMicroseconds(queryParameters.DurationMin),
+			jModel.DurationAsMicroseconds(queryParameters.DurationMax))
 	}
 
 	for key, value := range queryParameters.Tags {
-		query += fmt.Sprintf(" @tagKey:{ %s } @tagValue:{ %s }",
+		query += fmt.Sprintf(" @mTagKey:{%s} @mTagValue:{%s}",
 			redis.Tokenization(key),
 			redis.Tokenization(value))
 	}
 
 	query += fmt.Sprintf(" @startTime:[%v %v]",
-		model.TimeAsEpochMicroseconds(queryParameters.StartTimeMin),
-		model.TimeAsEpochMicroseconds(queryParameters.StartTimeMax))
+		jModel.TimeAsEpochMicroseconds(queryParameters.StartTimeMin),
+		jModel.TimeAsEpochMicroseconds(queryParameters.StartTimeMax))
 
 	return query
 }

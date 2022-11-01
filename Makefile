@@ -109,9 +109,3 @@ integration-test: build-all-platforms
 	PLUGIN_BINARY_PATH=$(PWD)/bin/jaeger-redisearch-linux-amd64 \
 	PLUGIN_CONFIG_PATH=$(PWD)/configs/config.yaml \
 	go test ./integration
-
-docker-build: build
-	@DOCKER_BUILDKIT=1 docker build -t ${ARTIFACT_NAME}:${RELEASE_VERSION} -f ./build/package/Dockerfile --progress=plain .
-
-docker-push:
-	@DOCKER_BUILDKIT=1 docker push $(ARTIFACT_NAME):${RELEASE_VERSION}

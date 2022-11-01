@@ -26,6 +26,8 @@ const (
 	Int64Type ValueType = "int64"
 	// Float64Type indicates a 64bit float value stored in KeyValue
 	Float64Type ValueType = "float64"
+	// BinaryType indicates a binary value stored in KeyValue
+	BinaryType ValueType = "binary"
 )
 
 // Span is MongoDB representation of the domain span.
@@ -41,6 +43,7 @@ type Span struct {
 	ProcessID     string      `json:"processID"`
 	Process       Process     `json:"process,omitempty"`
 	Tags          []KeyValue  `json:"tags"`
+	MultipleTags  []KeyValue  `json:"mTags"`
 	Logs          []Log       `json:"logs"`
 	Warnings      []string    `json:"warnings"`
 }

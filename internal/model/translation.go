@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/nicolastakashi/jaeger-redisearch/internal/redis"
 
-	"github.com/jaegertracing/jaeger/model"
 	jModel "github.com/jaegertracing/jaeger/model"
 )
 
@@ -41,38 +39,65 @@ func ConvertRefTypeFromJaeger(refType jModel.SpanRefType) ReferenceType {
 func ConvertKeyValuesFromJaeger(keyValues jModel.KeyValues) []KeyValue {
 	kvs := make([]KeyValue, 0)
 	for _, kv := range keyValues {
-		if kv.GetVType() != jModel.BinaryType {
-			kvs = append(kvs, ConvertKeyValueFromJaeger(kv))
-		}
+		kvs = append(kvs, ConvertKeyValueFromJaeger(kv))
 	}
 	return kvs
 }
 
-func ConvertKeyValueFromJaeger(kv jModel.KeyValue) KeyValue {
-	return KeyValue{
-		Key:   redis.Tokenization(kv.Key),
-		Type:  ValueType(strings.ToLower(kv.VType.String())),
-		Value: redis.Tokenization(kv.AsString()),
+func ConvertKeyValueFromJaeger(jKv jModel.KeyValue) KeyValue {
+	kv := KeyValue{
+		Key:  jKv.Key,
+		Type: ValueType(strings.ToLower(jKv.VType.String())),
 	}
+
+	if jKv.VType == jModel.BinaryType {
+		kv.Value = string(jKv.Binary())
+		return kv
+	}
+
+	kv.Value = jKv.AsString()
+	return kv
 }
 
 func ConvertLogFromJaeger(jLogs []jModel.Log) []Log {
 	logs := make([]Log, 0)
 	for _, jLog := range jLogs {
 		logs = append(logs, Log{
-			Timestamp: model.TimeAsEpochMicroseconds(jLog.Timestamp),
+			Timestamp: jModel.TimeAsEpochMicroseconds(jLog.Timestamp),
 			Fields:    ConvertKeyValuesFromJaeger(jLog.Fields),
 		})
 	}
 	return logs
 }
 
-func TimeAsEpochMicroseconds(t time.Time) uint64 {
-	return uint64(t.UnixNano() / 1000)
-}
+func MergeTags(jSpan *jModel.Span) []KeyValue {
+	visitedTags := map[string]bool{}
+	mTags := []KeyValue{}
 
-func DurationAsMicroseconds(d time.Duration) uint64 {
-	return uint64(d.Nanoseconds() / 1000)
+	for _, t := range jSpan.Tags {
+		if _, ok := visitedTags[t.Key]; !ok {
+			visitedTags[t.Key] = true
+			mTags = append(mTags, ConvertKeyValueFromJaeger(t))
+		}
+	}
+
+	for _, t := range jSpan.Process.Tags {
+		if _, ok := visitedTags[t.Key]; !ok {
+			visitedTags[t.Key] = true
+			mTags = append(mTags, ConvertKeyValueFromJaeger(t))
+		}
+	}
+
+	for _, l := range jSpan.Logs {
+		for _, t := range l.Fields {
+			if _, ok := visitedTags[t.Key]; !ok {
+				visitedTags[t.Key] = true
+				mTags = append(mTags, ConvertKeyValueFromJaeger(t))
+			}
+		}
+	}
+
+	return mTags
 }
 
 func ConvertReferencesToJaeger(refs []Reference) ([]jModel.SpanRef, error) {
@@ -130,25 +155,27 @@ func convertKeyValueToJaeger(tag *KeyValue) (jModel.KeyValue, error) {
 	}
 	switch tag.Type {
 	case StringType:
-		return jModel.String(redis.UnTokenization(tag.Key), redis.UnTokenization(tagValue)), nil
+		return jModel.String(tag.Key, tagValue), nil
 	case BoolType:
 		value, err := strconv.ParseBool(tagValue)
 		if err != nil {
 			return jModel.KeyValue{}, err
 		}
-		return jModel.Bool(redis.UnTokenization(tag.Key), value), nil
+		return jModel.Bool(tag.Key, value), nil
 	case Int64Type:
 		value, err := strconv.ParseInt(tagValue, 10, 64)
 		if err != nil {
 			return jModel.KeyValue{}, err
 		}
-		return jModel.Int64(redis.UnTokenization(tag.Key), value), nil
+		return jModel.Int64(tag.Key, value), nil
 	case Float64Type:
-		value, err := strconv.ParseFloat(redis.UnTokenization(tagValue), 64)
+		value, err := strconv.ParseFloat(tagValue, 64)
 		if err != nil {
 			return jModel.KeyValue{}, err
 		}
-		return jModel.Float64(redis.UnTokenization(tag.Key), value), nil
+		return jModel.Float64(tag.Key, value), nil
+	case BinaryType:
+		return jModel.Binary(tag.Key, []byte(tagValue)), nil
 	}
 	return jModel.KeyValue{}, fmt.Errorf("not a valid ValueType string %s", string(tag.Type))
 }
