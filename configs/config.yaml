@@ -23,3 +23,9 @@ redis_write_timeout: 10s
 ## If ClientOption.Sentinel.MasterSet is set, then InitAddress will be used to connect sentinels\
 redis_addresses:
   - localhost:6379
+
+## redis_password configure redis client password
+redis_password: ""
+
+## redis_password configure redis client username
+redis_username: ""

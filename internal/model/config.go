@@ -12,6 +12,8 @@ type Configuration struct {
 	RedisAddresses    []string      `yaml:"redis_addresses"`
 	RedisWriteTimeout time.Duration `yaml:"redis_write_timeout"`
 	RedisTTL          time.Duration `yaml:"redis_ttl"`
+	RedisPassword     string        `yaml:"redis_password"`
+	RedisUsername     string        `yaml:"redis_username"`
 }
 
 func InitFromViper(v *viper.Viper) Configuration {
@@ -22,12 +24,16 @@ func InitFromViper(v *viper.Viper) Configuration {
 	v.SetDefault("redis_write_timeout", time.Second*30)
 	v.SetDefault("redis_ttl", time.Second*60)
 	v.SetDefault("http_port", "9090")
+	v.SetDefault("redis_password", "")
+	v.SetDefault("redis_username", "")
 
 	config.MaxNumSpans = v.GetInt64("max_num_spans")
 	config.RedisAddresses = v.GetStringSlice("redis_addresses")
 	config.RedisWriteTimeout = v.GetDuration("redis_write_timeout")
 	config.RedisTTL = v.GetDuration("redis_ttl")
 	config.HttpPort = v.GetString("http_port")
+	config.RedisPassword = v.GetString("redis_password")
+	config.RedisUsername = v.GetString("redis_username")
 
 	return config
 }

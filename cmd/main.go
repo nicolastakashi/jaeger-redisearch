@@ -50,11 +50,21 @@ func main() {
 
 	config := model.InitFromViper(v)
 
-	c, err := rueidis.NewClient(rueidis.ClientOption{
+	redisClientOptions := rueidis.ClientOption{
 		InitAddress:      config.RedisAddresses,
 		ConnWriteTimeout: config.RedisWriteTimeout,
 		ClientName:       "jaeger-redisearch",
-	})
+	}
+
+	if config.RedisPassword != "" {
+		redisClientOptions.Password = config.RedisPassword
+	}
+
+	if config.RedisUsername != "" {
+		redisClientOptions.Username = config.RedisUsername
+	}
+
+	c, err := rueidis.NewClient(redisClientOptions)
 
 	if err != nil {
 		logger.Error("error to connect to redis", err)
@@ -79,7 +89,6 @@ func main() {
 
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		// http.Handle("/debug/pprof/heap", _)
 		err = http.ListenAndServe(fmt.Sprintf(":%v", config.HttpPort), nil)
 		if err != nil {
 			logger.Error("Failed to listen for metrics endpoint", "error", err)
