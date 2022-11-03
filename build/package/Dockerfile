@@ -9,4 +9,4 @@ WORKDIR /plugin
 USER nobody
 
 # /plugin/ location is defined in jaeger-operator
-CMD ["cp", "/go/bin/jaeger-clickhouse", "/plugin/jaeger-clickhouse"]
+CMD ["cp", "/go/bin/jaeger-redisearch", "/plugin/jaeger-redisearch"]
